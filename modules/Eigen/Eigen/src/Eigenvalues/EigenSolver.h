@@ -13,8 +13,6 @@
 
 #include "./RealSchur.h"
 
-#include "./InternalHeaderCheck.h"
-
 namespace Eigen { 
 
 /** \eigenvalues_module \ingroup Eigenvalues_Module
@@ -24,7 +22,7 @@ namespace Eigen {
   *
   * \brief Computes eigenvalues and eigenvectors of general matrices
   *
-  * \tparam MatrixType_ the type of the matrix of which we are computing the
+  * \tparam _MatrixType the type of the matrix of which we are computing the
   * eigendecomposition; this is expected to be an instantiation of the Matrix
   * class template. Currently, only real matrices are supported.
   *
@@ -63,12 +61,12 @@ namespace Eigen {
   *
   * \sa MatrixBase::eigenvalues(), class ComplexEigenSolver, class SelfAdjointEigenSolver
   */
-template<typename MatrixType_> class EigenSolver
+template<typename _MatrixType> class EigenSolver
 {
   public:
 
-    /** \brief Synonym for the template parameter \p MatrixType_. */
-    typedef MatrixType_ MatrixType;
+    /** \brief Synonym for the template parameter \p _MatrixType. */
+    typedef _MatrixType MatrixType;
 
     enum {
       RowsAtCompileTime = MatrixType::RowsAtCompileTime,
@@ -112,7 +110,7 @@ template<typename MatrixType_> class EigenSolver
       *
       * \sa compute() for an example.
       */
-    EigenSolver() : m_eivec(), m_eivalues(), m_isInitialized(false), m_eigenvectorsOk(false), m_realSchur(), m_matT(), m_tmp() {}
+    EigenSolver() : m_eivec(), m_eivalues(), m_isInitialized(false), m_realSchur(), m_matT(), m_tmp() {}
 
     /** \brief Default constructor with memory preallocation
       *
@@ -279,7 +277,7 @@ template<typename MatrixType_> class EigenSolver
     template<typename InputType>
     EigenSolver& compute(const EigenBase<InputType>& matrix, bool computeEigenvectors = true);
 
-    /** \returns NumericalIssue if the input contains INF or NaN values or overflow occurred. Returns Success otherwise. */
+    /** \returns NumericalIssue if the input contains INF or NaN values or overflow occured. Returns Success otherwise. */
     ComputationInfo info() const
     {
       eigen_assert(m_isInitialized && "EigenSolver is not initialized.");

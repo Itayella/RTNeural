@@ -10,9 +10,8 @@
 #ifndef EIGEN_STL_FUNCTORS_H
 #define EIGEN_STL_FUNCTORS_H
 
-#include "../InternalHeaderCheck.h"
-
 namespace Eigen {
+
 namespace internal {
 
 // default functor traits for STL functors:
@@ -73,7 +72,18 @@ template<typename T>
 struct functor_traits<std::not_equal_to<T> >
 { enum { Cost = 1, PacketAccess = false }; };
 
-#if (EIGEN_COMP_CXXVER < 17)
+#if (__cplusplus < 201103L) && (EIGEN_COMP_MSVC <= 1900)
+// std::binder* are deprecated since c++11 and will be removed in c++17
+template<typename T>
+struct functor_traits<std::binder2nd<T> >
+{ enum { Cost = functor_traits<T>::Cost, PacketAccess = false }; };
+
+template<typename T>
+struct functor_traits<std::binder1st<T> >
+{ enum { Cost = functor_traits<T>::Cost, PacketAccess = false }; };
+#endif
+
+#if (__cplusplus < 201703L) && (EIGEN_COMP_MSVC < 1910)
 // std::unary_negate is deprecated since c++17 and will be removed in c++20
 template<typename T>
 struct functor_traits<std::unary_negate<T> >

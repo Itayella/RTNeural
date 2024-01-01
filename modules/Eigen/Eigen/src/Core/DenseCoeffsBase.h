@@ -10,26 +10,23 @@
 #ifndef EIGEN_DENSECOEFFSBASE_H
 #define EIGEN_DENSECOEFFSBASE_H
 
-#include "./InternalHeaderCheck.h"
-
 namespace Eigen {
 
 namespace internal {
 template<typename T> struct add_const_on_value_type_if_arithmetic
 {
-  typedef std::conditional_t<is_arithmetic<T>::value, T, add_const_on_value_type_t<T>> type;
+  typedef typename conditional<is_arithmetic<T>::value, T, typename add_const_on_value_type<T>::type>::type type;
 };
 }
 
 /** \brief Base class providing read-only coefficient access to matrices and arrays.
   * \ingroup Core_Module
   * \tparam Derived Type of the derived class
-  *
-  * \note #ReadOnlyAccessors Constant indicating read-only access
+  * \tparam #ReadOnlyAccessors Constant indicating read-only access
   *
   * This class defines the \c operator() \c const function and friends, which can be used to read specific
   * entries of a matrix or array.
-  *
+  * 
   * \sa DenseCoeffsBase<Derived, WriteAccessors>, DenseCoeffsBase<Derived, DirectAccessors>,
   *     \ref TopicClassHierarchy
   */
@@ -45,13 +42,13 @@ class DenseCoeffsBase<Derived,ReadOnlyAccessors> : public EigenBase<Derived>
     // - This is the return type of the coeff() method.
     // - The LvalueBit means exactly that we can offer a coeffRef() method, which means exactly that we can get references
     // to coeffs, which means exactly that we can have coeff() return a const reference (as opposed to returning a value).
-    // - The is_arithmetic check is required since "const int", "const double", etc. will cause warnings on some systems
+    // - The is_artihmetic check is required since "const int", "const double", etc. will cause warnings on some systems
     // while the declaration of "const T", where T is a non arithmetic type does not. Always returning "const Scalar&" is
     // not possible, since the underlying expressions might not offer a valid address the reference could be referring to.
-    typedef std::conditional_t<bool(internal::traits<Derived>::Flags&LvalueBit),
-                const Scalar&,
-                std::conditional_t<internal::is_arithmetic<Scalar>::value, Scalar, const Scalar>
-            > CoeffReturnType;
+    typedef typename internal::conditional<bool(internal::traits<Derived>::Flags&LvalueBit),
+                         const Scalar&,
+                         typename internal::conditional<internal::is_arithmetic<Scalar>::value, Scalar, const Scalar>::type
+                     >::type CoeffReturnType;
 
     typedef typename internal::add_const_on_value_type_if_arithmetic<
                          typename internal::packet_traits<Scalar>::type
@@ -291,13 +288,12 @@ class DenseCoeffsBase<Derived,ReadOnlyAccessors> : public EigenBase<Derived>
 /** \brief Base class providing read/write coefficient access to matrices and arrays.
   * \ingroup Core_Module
   * \tparam Derived Type of the derived class
-  *
-  * \note #WriteAccessors Constant indicating read/write access
+  * \tparam #WriteAccessors Constant indicating read/write access
   *
   * This class defines the non-const \c operator() function and friends, which can be used to write specific
   * entries of a matrix or array. This class inherits DenseCoeffsBase<Derived, ReadOnlyAccessors> which
   * defines the const variant for reading specific entries.
-  *
+  * 
   * \sa DenseCoeffsBase<Derived, DirectAccessors>, \ref TopicClassHierarchy
   */
 template<typename Derived>
@@ -470,8 +466,7 @@ class DenseCoeffsBase<Derived, WriteAccessors> : public DenseCoeffsBase<Derived,
 /** \brief Base class providing direct read-only coefficient access to matrices and arrays.
   * \ingroup Core_Module
   * \tparam Derived Type of the derived class
-  *
-  * \note #DirectAccessors Constant indicating direct access
+  * \tparam #DirectAccessors Constant indicating direct access
   *
   * This class defines functions to work with strides which can be used to access entries directly. This class
   * inherits DenseCoeffsBase<Derived, ReadOnlyAccessors> which defines functions to access entries read-only using
@@ -497,7 +492,7 @@ class DenseCoeffsBase<Derived, DirectAccessors> : public DenseCoeffsBase<Derived
       *
       * \sa outerStride(), rowStride(), colStride()
       */
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
+    EIGEN_DEVICE_FUNC
     inline Index innerStride() const
     {
       return derived().innerStride();
@@ -508,14 +503,14 @@ class DenseCoeffsBase<Derived, DirectAccessors> : public DenseCoeffsBase<Derived
       *
       * \sa innerStride(), rowStride(), colStride()
       */
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
+    EIGEN_DEVICE_FUNC
     inline Index outerStride() const
     {
       return derived().outerStride();
     }
 
     // FIXME shall we remove it ?
-    EIGEN_CONSTEXPR inline Index stride() const
+    inline Index stride() const
     {
       return Derived::IsVectorAtCompileTime ? innerStride() : outerStride();
     }
@@ -524,7 +519,7 @@ class DenseCoeffsBase<Derived, DirectAccessors> : public DenseCoeffsBase<Derived
       *
       * \sa innerStride(), outerStride(), colStride()
       */
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
+    EIGEN_DEVICE_FUNC
     inline Index rowStride() const
     {
       return Derived::IsRowMajor ? outerStride() : innerStride();
@@ -534,7 +529,7 @@ class DenseCoeffsBase<Derived, DirectAccessors> : public DenseCoeffsBase<Derived
       *
       * \sa innerStride(), outerStride(), rowStride()
       */
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
+    EIGEN_DEVICE_FUNC
     inline Index colStride() const
     {
       return Derived::IsRowMajor ? innerStride() : outerStride();
@@ -544,8 +539,7 @@ class DenseCoeffsBase<Derived, DirectAccessors> : public DenseCoeffsBase<Derived
 /** \brief Base class providing direct read/write coefficient access to matrices and arrays.
   * \ingroup Core_Module
   * \tparam Derived Type of the derived class
-  *
-  * \note #DirectWriteAccessors Constant indicating direct access
+  * \tparam #DirectWriteAccessors Constant indicating direct access
   *
   * This class defines functions to work with strides which can be used to access entries directly. This class
   * inherits DenseCoeffsBase<Derived, WriteAccessors> which defines functions to access entries read/write using
@@ -572,8 +566,8 @@ class DenseCoeffsBase<Derived, DirectWriteAccessors>
       *
       * \sa outerStride(), rowStride(), colStride()
       */
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
-    inline Index innerStride() const EIGEN_NOEXCEPT
+    EIGEN_DEVICE_FUNC
+    inline Index innerStride() const
     {
       return derived().innerStride();
     }
@@ -583,14 +577,14 @@ class DenseCoeffsBase<Derived, DirectWriteAccessors>
       *
       * \sa innerStride(), rowStride(), colStride()
       */
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
-    inline Index outerStride() const EIGEN_NOEXCEPT
+    EIGEN_DEVICE_FUNC
+    inline Index outerStride() const
     {
       return derived().outerStride();
     }
 
     // FIXME shall we remove it ?
-    EIGEN_CONSTEXPR inline Index stride() const EIGEN_NOEXCEPT
+    inline Index stride() const
     {
       return Derived::IsVectorAtCompileTime ? innerStride() : outerStride();
     }
@@ -599,8 +593,8 @@ class DenseCoeffsBase<Derived, DirectWriteAccessors>
       *
       * \sa innerStride(), outerStride(), colStride()
       */
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
-    inline Index rowStride() const EIGEN_NOEXCEPT
+    EIGEN_DEVICE_FUNC
+    inline Index rowStride() const
     {
       return Derived::IsRowMajor ? outerStride() : innerStride();
     }
@@ -609,8 +603,8 @@ class DenseCoeffsBase<Derived, DirectWriteAccessors>
       *
       * \sa innerStride(), outerStride(), rowStride()
       */
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
-    inline Index colStride() const EIGEN_NOEXCEPT
+    EIGEN_DEVICE_FUNC
+    inline Index colStride() const
     {
       return Derived::IsRowMajor ? innerStride() : outerStride();
     }
@@ -621,7 +615,7 @@ namespace internal {
 template<int Alignment, typename Derived, bool JustReturnZero>
 struct first_aligned_impl
 {
-  static EIGEN_CONSTEXPR inline Index run(const Derived&) EIGEN_NOEXCEPT
+  static inline Index run(const Derived&)
   { return 0; }
 };
 

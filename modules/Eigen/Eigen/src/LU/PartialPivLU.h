@@ -11,18 +11,15 @@
 #ifndef EIGEN_PARTIALLU_H
 #define EIGEN_PARTIALLU_H
 
-#include "./InternalHeaderCheck.h"
-
 namespace Eigen {
 
 namespace internal {
-template<typename MatrixType_, typename PermutationIndex_> struct traits<PartialPivLU<MatrixType_, PermutationIndex_> >
- : traits<MatrixType_>
+template<typename _MatrixType> struct traits<PartialPivLU<_MatrixType> >
+ : traits<_MatrixType>
 {
   typedef MatrixXpr XprKind;
   typedef SolverStorage StorageKind;
-  typedef PermutationIndex_ StorageIndex;
-  typedef traits<MatrixType_> BaseTraits;
+  typedef traits<_MatrixType> BaseTraits;
   enum {
     Flags = BaseTraits::Flags & RowMajorBit,
     CoeffReadCost = Dynamic
@@ -48,7 +45,7 @@ struct enable_if_ref<Ref<T>,Derived> {
   *
   * \brief LU decomposition of a matrix with partial pivoting, and related features
   *
-  * \tparam MatrixType_ the type of the matrix of which we are computing the LU decomposition
+  * \tparam _MatrixType the type of the matrix of which we are computing the LU decomposition
   *
   * This class represents a LU decomposition of a \b square \b invertible matrix, with partial pivoting: the matrix A
   * is decomposed as A = PLU where L is unit-lower-triangular, U is upper-triangular, and P
@@ -72,26 +69,24 @@ struct enable_if_ref<Ref<T>,Derived> {
   * The data of the LU decomposition can be directly accessed through the methods matrixLU(), permutationP().
   *
   * This class supports the \link InplaceDecomposition inplace decomposition \endlink mechanism.
-  *
+  * 
   * \sa MatrixBase::partialPivLu(), MatrixBase::determinant(), MatrixBase::inverse(), MatrixBase::computeInverse(), class FullPivLU
   */
-template<typename MatrixType_, typename PermutationIndex_> class PartialPivLU
-  : public SolverBase<PartialPivLU<MatrixType_, PermutationIndex_> >
+template<typename _MatrixType> class PartialPivLU
+  : public SolverBase<PartialPivLU<_MatrixType> >
 {
   public:
 
-    typedef MatrixType_ MatrixType;
+    typedef _MatrixType MatrixType;
     typedef SolverBase<PartialPivLU> Base;
-    friend class SolverBase<PartialPivLU>;
-
     EIGEN_GENERIC_PUBLIC_INTERFACE(PartialPivLU)
+    // FIXME StorageIndex defined in EIGEN_GENERIC_PUBLIC_INTERFACE should be int
     enum {
       MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
       MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime
     };
-    using PermutationIndex = PermutationIndex_;
-    typedef PermutationMatrix<RowsAtCompileTime, MaxRowsAtCompileTime, PermutationIndex> PermutationType;
-    typedef Transpositions<RowsAtCompileTime, MaxRowsAtCompileTime, PermutationIndex> TranspositionType;
+    typedef PermutationMatrix<RowsAtCompileTime, MaxRowsAtCompileTime> PermutationType;
+    typedef Transpositions<RowsAtCompileTime, MaxRowsAtCompileTime> TranspositionType;
     typedef typename MatrixType::PlainObject PlainObject;
 
     /**
@@ -157,7 +152,6 @@ template<typename MatrixType_, typename PermutationIndex_> class PartialPivLU
       return m_p;
     }
 
-    #ifdef EIGEN_PARSED_BY_DOXYGEN
     /** This method returns the solution x to the equation Ax=b, where A is the matrix of which
       * *this is the LU decomposition.
       *
@@ -175,10 +169,14 @@ template<typename MatrixType_, typename PermutationIndex_> class PartialPivLU
       *
       * \sa TriangularView::solve(), inverse(), computeInverse()
       */
+    // FIXME this is a copy-paste of the base-class member to add the isInitialized assertion.
     template<typename Rhs>
     inline const Solve<PartialPivLU, Rhs>
-    solve(const MatrixBase<Rhs>& b) const;
-    #endif
+    solve(const MatrixBase<Rhs>& b) const
+    {
+      eigen_assert(m_isInitialized && "PartialPivLU is not initialized.");
+      return Solve<PartialPivLU, Rhs>(*this, b.derived());
+    }
 
     /** \returns an estimate of the reciprocal condition number of the matrix of which \c *this is
         the LU decomposition.
@@ -219,8 +217,8 @@ template<typename MatrixType_, typename PermutationIndex_> class PartialPivLU
 
     MatrixType reconstructedMatrix() const;
 
-    EIGEN_CONSTEXPR inline Index rows() const EIGEN_NOEXCEPT { return m_lu.rows(); }
-    EIGEN_CONSTEXPR inline Index cols() const EIGEN_NOEXCEPT { return m_lu.cols(); }
+    inline Index rows() const { return m_lu.rows(); }
+    inline Index cols() const { return m_lu.cols(); }
 
     #ifndef EIGEN_PARSED_BY_DOXYGEN
     template<typename RhsType, typename DstType>
@@ -232,6 +230,8 @@ template<typename MatrixType_, typename PermutationIndex_> class PartialPivLU
       * Step 2: replace c by the solution x to Lx = c.
       * Step 3: replace c by the solution x to Ux = c.
       */
+
+      eigen_assert(rhs.rows() == m_lu.rows());
 
       // Step 1
       dst = permutationP() * rhs;
@@ -246,21 +246,26 @@ template<typename MatrixType_, typename PermutationIndex_> class PartialPivLU
     template<bool Conjugate, typename RhsType, typename DstType>
     EIGEN_DEVICE_FUNC
     void _solve_impl_transposed(const RhsType &rhs, DstType &dst) const {
-     /* The decomposition PA = LU can be rewritten as A^T = U^T L^T P.
+     /* The decomposition PA = LU can be rewritten as A = P^{-1} L U.
       * So we proceed as follows:
-      * Step 1: compute c as the solution to L^T c = b
-      * Step 2: replace c by the solution x to U^T x = c.
-      * Step 3: update  c = P^-1 c.
+      * Step 1: compute c = Pb.
+      * Step 2: replace c by the solution x to Lx = c.
+      * Step 3: replace c by the solution x to Ux = c.
       */
 
       eigen_assert(rhs.rows() == m_lu.cols());
 
-      // Step 1
-      dst = m_lu.template triangularView<Upper>().transpose()
-                .template conjugateIf<Conjugate>().solve(rhs);
-      // Step 2
-      m_lu.template triangularView<UnitLower>().transpose()
-          .template conjugateIf<Conjugate>().solveInPlace(dst);
+      if (Conjugate) {
+        // Step 1
+        dst = m_lu.template triangularView<Upper>().adjoint().solve(rhs);
+        // Step 2
+        m_lu.template triangularView<UnitLower>().adjoint().solveInPlace(dst);
+      } else {
+        // Step 1
+        dst = m_lu.template triangularView<Upper>().transpose().solve(rhs);
+        // Step 2
+        m_lu.template triangularView<UnitLower>().transpose().solveInPlace(dst);
+      }
       // Step 3
       dst = permutationP().transpose() * dst;
     }
@@ -268,7 +273,10 @@ template<typename MatrixType_, typename PermutationIndex_> class PartialPivLU
 
   protected:
 
-    EIGEN_STATIC_ASSERT_NON_INTEGER(Scalar)
+    static void check_template_parameters()
+    {
+      EIGEN_STATIC_ASSERT_NON_INTEGER(Scalar);
+    }
 
     void compute();
 
@@ -280,8 +288,8 @@ template<typename MatrixType_, typename PermutationIndex_> class PartialPivLU
     bool m_isInitialized;
 };
 
-template<typename MatrixType, typename PermutationIndex>
-PartialPivLU<MatrixType, PermutationIndex>::PartialPivLU()
+template<typename MatrixType>
+PartialPivLU<MatrixType>::PartialPivLU()
   : m_lu(),
     m_p(),
     m_rowsTranspositions(),
@@ -291,8 +299,8 @@ PartialPivLU<MatrixType, PermutationIndex>::PartialPivLU()
 {
 }
 
-template<typename MatrixType, typename PermutationIndex>
-PartialPivLU<MatrixType, PermutationIndex>::PartialPivLU(Index size)
+template<typename MatrixType>
+PartialPivLU<MatrixType>::PartialPivLU(Index size)
   : m_lu(size, size),
     m_p(size),
     m_rowsTranspositions(size),
@@ -302,9 +310,9 @@ PartialPivLU<MatrixType, PermutationIndex>::PartialPivLU(Index size)
 {
 }
 
-template<typename MatrixType, typename PermutationIndex>
+template<typename MatrixType>
 template<typename InputType>
-PartialPivLU<MatrixType, PermutationIndex>::PartialPivLU(const EigenBase<InputType>& matrix)
+PartialPivLU<MatrixType>::PartialPivLU(const EigenBase<InputType>& matrix)
   : m_lu(matrix.rows(),matrix.cols()),
     m_p(matrix.rows()),
     m_rowsTranspositions(matrix.rows()),
@@ -315,9 +323,9 @@ PartialPivLU<MatrixType, PermutationIndex>::PartialPivLU(const EigenBase<InputTy
   compute(matrix.derived());
 }
 
-template<typename MatrixType, typename PermutationIndex>
+template<typename MatrixType>
 template<typename InputType>
-PartialPivLU<MatrixType, PermutationIndex>::PartialPivLU(EigenBase<InputType>& matrix)
+PartialPivLU<MatrixType>::PartialPivLU(EigenBase<InputType>& matrix)
   : m_lu(matrix.derived()),
     m_p(matrix.rows()),
     m_rowsTranspositions(matrix.rows()),
@@ -331,18 +339,17 @@ PartialPivLU<MatrixType, PermutationIndex>::PartialPivLU(EigenBase<InputType>& m
 namespace internal {
 
 /** \internal This is the blocked version of fullpivlu_unblocked() */
-template<typename Scalar, int StorageOrder, typename PivIndex, int SizeAtCompileTime=Dynamic>
+template<typename Scalar, int StorageOrder, typename PivIndex>
 struct partial_lu_impl
 {
-  static constexpr int UnBlockedBound = 16;
-  static constexpr bool UnBlockedAtCompileTime = SizeAtCompileTime!=Dynamic && SizeAtCompileTime<=UnBlockedBound;
-  static constexpr int ActualSizeAtCompileTime = UnBlockedAtCompileTime ? SizeAtCompileTime : Dynamic;
-  // Remaining rows and columns at compile-time:
-  static constexpr int RRows = SizeAtCompileTime==2 ? 1 : Dynamic;
-  static constexpr int RCols = SizeAtCompileTime==2 ? 1 : Dynamic;
-  typedef Matrix<Scalar, ActualSizeAtCompileTime, ActualSizeAtCompileTime, StorageOrder> MatrixType;
-  typedef Ref<MatrixType> MatrixTypeRef;
-  typedef Ref<Matrix<Scalar, Dynamic, Dynamic, StorageOrder> > BlockType;
+  // FIXME add a stride to Map, so that the following mapping becomes easier,
+  // another option would be to create an expression being able to automatically
+  // warp any Map, Matrix, and Block expressions as a unique type, but since that's exactly
+  // a Map + stride, why not adding a stride to Map, and convenient ctors from a Matrix,
+  // and Block.
+  typedef Map<Matrix<Scalar, Dynamic, Dynamic, StorageOrder> > MapLU;
+  typedef Block<MapLU, Dynamic, Dynamic> MatrixType;
+  typedef Block<MatrixType,Dynamic,Dynamic> BlockType;
   typedef typename MatrixType::RealScalar RealScalar;
 
   /** \internal performs the LU decomposition in-place of the matrix \a lu
@@ -355,22 +362,19 @@ struct partial_lu_impl
     *
     * \returns The index of the first pivot which is exactly zero if any, or a negative number otherwise.
     */
-  static Index unblocked_lu(MatrixTypeRef& lu, PivIndex* row_transpositions, PivIndex& nb_transpositions)
+  static Index unblocked_lu(MatrixType& lu, PivIndex* row_transpositions, PivIndex& nb_transpositions)
   {
     typedef scalar_score_coeff_op<Scalar> Scoring;
     typedef typename Scoring::result_type Score;
     const Index rows = lu.rows();
     const Index cols = lu.cols();
     const Index size = (std::min)(rows,cols);
-    // For small compile-time matrices it is worth processing the last row separately:
-    //  speedup: +100% for 2x2, +10% for others.
-    const Index endk = UnBlockedAtCompileTime ? size-1 : size;
     nb_transpositions = 0;
     Index first_zero_pivot = -1;
-    for(Index k = 0; k < endk; ++k)
+    for(Index k = 0; k < size; ++k)
     {
-      int rrows = internal::convert_index<int>(rows-k-1);
-      int rcols = internal::convert_index<int>(cols-k-1);
+      Index rrows = rows-k-1;
+      Index rcols = cols-k-1;
 
       Index row_of_biggest_in_col;
       Score biggest_in_corner
@@ -379,7 +383,7 @@ struct partial_lu_impl
 
       row_transpositions[k] = PivIndex(row_of_biggest_in_col);
 
-      if(!numext::is_exactly_zero(biggest_in_corner))
+      if(biggest_in_corner != Score(0))
       {
         if(k != row_of_biggest_in_col)
         {
@@ -387,7 +391,9 @@ struct partial_lu_impl
           ++nb_transpositions;
         }
 
-        lu.col(k).tail(fix<RRows>(rrows)) /= lu.coeff(k,k);
+        // FIXME shall we introduce a safe quotient expression in cas 1/lu.coeff(k,k)
+        // overflow but not the actual quotient?
+        lu.col(k).tail(rrows) /= lu.coeff(k,k);
       }
       else if(first_zero_pivot==-1)
       {
@@ -397,18 +403,8 @@ struct partial_lu_impl
       }
 
       if(k<rows-1)
-        lu.bottomRightCorner(fix<RRows>(rrows),fix<RCols>(rcols)).noalias() -= lu.col(k).tail(fix<RRows>(rrows)) * lu.row(k).tail(fix<RCols>(rcols));
+        lu.bottomRightCorner(rrows,rcols).noalias() -= lu.col(k).tail(rrows) * lu.row(k).tail(rcols);
     }
-
-    // special handling of the last entry
-    if(UnBlockedAtCompileTime)
-    {
-      Index k = endk;
-      row_transpositions[k] = PivIndex(k);
-      if (numext::is_exactly_zero(Scoring()(lu(k, k))) && first_zero_pivot == -1)
-        first_zero_pivot = k;
-    }
-
     return first_zero_pivot;
   }
 
@@ -424,17 +420,18 @@ struct partial_lu_impl
     * \returns The index of the first pivot which is exactly zero if any, or a negative number otherwise.
     *
     * \note This very low level interface using pointers, etc. is to:
-    *   1 - reduce the number of instantiations to the strict minimum
-    *   2 - avoid infinite recursion of the instantiations with Block<Block<Block<...> > >
+    *   1 - reduce the number of instanciations to the strict minimum
+    *   2 - avoid infinite recursion of the instanciations with Block<Block<Block<...> > >
     */
   static Index blocked_lu(Index rows, Index cols, Scalar* lu_data, Index luStride, PivIndex* row_transpositions, PivIndex& nb_transpositions, Index maxBlockSize=256)
   {
-    MatrixTypeRef lu = MatrixType::Map(lu_data,rows, cols, OuterStride<>(luStride));
+    MapLU lu1(lu_data,StorageOrder==RowMajor?rows:luStride,StorageOrder==RowMajor?luStride:cols);
+    MatrixType lu(lu1,0,0,rows,cols);
 
     const Index size = (std::min)(rows,cols);
 
     // if the matrix is too small, no blocking:
-    if(UnBlockedAtCompileTime || size<=UnBlockedBound)
+    if(size<=16)
     {
       return unblocked_lu(lu, row_transpositions, nb_transpositions);
     }
@@ -460,12 +457,12 @@ struct partial_lu_impl
       //                          A00 | A01 | A02
       // lu  = A_0 | A_1 | A_2 =  A10 | A11 | A12
       //                          A20 | A21 | A22
-      BlockType A_0 = lu.block(0,0,rows,k);
-      BlockType A_2 = lu.block(0,k+bs,rows,tsize);
-      BlockType A11 = lu.block(k,k,bs,bs);
-      BlockType A12 = lu.block(k,k+bs,bs,tsize);
-      BlockType A21 = lu.block(k+bs,k,trows,bs);
-      BlockType A22 = lu.block(k+bs,k+bs,trows,tsize);
+      BlockType A_0(lu,0,0,rows,k);
+      BlockType A_2(lu,0,k+bs,rows,tsize);
+      BlockType A11(lu,k,k,bs,bs);
+      BlockType A12(lu,k,k+bs,bs,tsize);
+      BlockType A21(lu,k+bs,k,trows,bs);
+      BlockType A22(lu,k+bs,k+bs,trows,tsize);
 
       PivIndex nb_transpositions_in_panel;
       // recursively call the blocked LU algorithm on [A11^T A21^T]^T
@@ -504,32 +501,25 @@ struct partial_lu_impl
 template<typename MatrixType, typename TranspositionType>
 void partial_lu_inplace(MatrixType& lu, TranspositionType& row_transpositions, typename TranspositionType::StorageIndex& nb_transpositions)
 {
-  // Special-case of zero matrix.
-  if (lu.rows() == 0 || lu.cols() == 0) {
-    nb_transpositions = 0;
-    return;
-  }
   eigen_assert(lu.cols() == row_transpositions.size());
-  eigen_assert(row_transpositions.size() < 2 || (&row_transpositions.coeffRef(1)-&row_transpositions.coeffRef(0)) == 1);
+  eigen_assert((&row_transpositions.coeffRef(1)-&row_transpositions.coeffRef(0)) == 1);
 
   partial_lu_impl
-    < typename MatrixType::Scalar, MatrixType::Flags&RowMajorBit?RowMajor:ColMajor,
-      typename TranspositionType::StorageIndex,
-      internal::min_size_prefer_fixed(MatrixType::RowsAtCompileTime, MatrixType::ColsAtCompileTime)>
+    <typename MatrixType::Scalar, MatrixType::Flags&RowMajorBit?RowMajor:ColMajor, typename TranspositionType::StorageIndex>
     ::blocked_lu(lu.rows(), lu.cols(), &lu.coeffRef(0,0), lu.outerStride(), &row_transpositions.coeffRef(0), nb_transpositions);
 }
 
 } // end namespace internal
 
-template<typename MatrixType, typename PermutationIndex>
-void PartialPivLU<MatrixType, PermutationIndex>::compute()
+template<typename MatrixType>
+void PartialPivLU<MatrixType>::compute()
 {
-  eigen_assert(m_lu.rows()<NumTraits<PermutationIndex>::highest());
+  check_template_parameters();
 
-  if(m_lu.cols()>0)
-    m_l1_norm = m_lu.cwiseAbs().colwise().sum().maxCoeff();
-  else
-    m_l1_norm = RealScalar(0);
+  // the row permutation is stored as int indices, so just to be sure:
+  eigen_assert(m_lu.rows()<NumTraits<int>::highest());
+
+  m_l1_norm = m_lu.cwiseAbs().colwise().sum().maxCoeff();
 
   eigen_assert(m_lu.rows() == m_lu.cols() && "PartialPivLU is only for square (and moreover invertible) matrices");
   const Index size = m_lu.rows();
@@ -545,8 +535,8 @@ void PartialPivLU<MatrixType, PermutationIndex>::compute()
   m_isInitialized = true;
 }
 
-template<typename MatrixType, typename PermutationIndex>
-typename PartialPivLU<MatrixType, PermutationIndex>::Scalar PartialPivLU<MatrixType, PermutationIndex>::determinant() const
+template<typename MatrixType>
+typename PartialPivLU<MatrixType>::Scalar PartialPivLU<MatrixType>::determinant() const
 {
   eigen_assert(m_isInitialized && "PartialPivLU is not initialized.");
   return Scalar(m_det_p) * m_lu.diagonal().prod();
@@ -555,8 +545,8 @@ typename PartialPivLU<MatrixType, PermutationIndex>::Scalar PartialPivLU<MatrixT
 /** \returns the matrix represented by the decomposition,
  * i.e., it returns the product: P^{-1} L U.
  * This function is provided for debug purpose. */
-template<typename MatrixType, typename PermutationIndex>
-MatrixType PartialPivLU<MatrixType, PermutationIndex>::reconstructedMatrix() const
+template<typename MatrixType>
+MatrixType PartialPivLU<MatrixType>::reconstructedMatrix() const
 {
   eigen_assert(m_isInitialized && "LU is not initialized.");
   // LU
@@ -574,10 +564,10 @@ MatrixType PartialPivLU<MatrixType, PermutationIndex>::reconstructedMatrix() con
 namespace internal {
 
 /***** Implementation of inverse() *****************************************************/
-template<typename DstXprType, typename MatrixType, typename PermutationIndex>
-struct Assignment<DstXprType, Inverse<PartialPivLU<MatrixType, PermutationIndex> >, internal::assign_op<typename DstXprType::Scalar,typename PartialPivLU<MatrixType, PermutationIndex>::Scalar>, Dense2Dense>
+template<typename DstXprType, typename MatrixType>
+struct Assignment<DstXprType, Inverse<PartialPivLU<MatrixType> >, internal::assign_op<typename DstXprType::Scalar,typename PartialPivLU<MatrixType>::Scalar>, Dense2Dense>
 {
-  typedef PartialPivLU<MatrixType, PermutationIndex> LuType;
+  typedef PartialPivLU<MatrixType> LuType;
   typedef Inverse<LuType> SrcXprType;
   static void run(DstXprType &dst, const SrcXprType &src, const internal::assign_op<typename DstXprType::Scalar,typename LuType::Scalar> &)
   {
@@ -595,11 +585,10 @@ struct Assignment<DstXprType, Inverse<PartialPivLU<MatrixType, PermutationIndex>
   * \sa class PartialPivLU
   */
 template<typename Derived>
-template<typename PermutationIndex>
-inline const PartialPivLU<typename MatrixBase<Derived>::PlainObject, PermutationIndex>
+inline const PartialPivLU<typename MatrixBase<Derived>::PlainObject>
 MatrixBase<Derived>::partialPivLu() const
 {
-  return PartialPivLU<PlainObject, PermutationIndex>(eval());
+  return PartialPivLU<PlainObject>(eval());
 }
 
 /** \lu_module
@@ -611,11 +600,10 @@ MatrixBase<Derived>::partialPivLu() const
   * \sa class PartialPivLU
   */
 template<typename Derived>
-template<typename PermutationIndex>
-inline const PartialPivLU<typename MatrixBase<Derived>::PlainObject, PermutationIndex>
+inline const PartialPivLU<typename MatrixBase<Derived>::PlainObject>
 MatrixBase<Derived>::lu() const
 {
-  return PartialPivLU<PlainObject, PermutationIndex>(eval());
+  return PartialPivLU<PlainObject>(eval());
 }
 
 } // end namespace Eigen

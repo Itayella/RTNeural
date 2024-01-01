@@ -11,9 +11,7 @@
 #ifndef EIGEN_CWISE_UNARY_OP_H
 #define EIGEN_CWISE_UNARY_OP_H
 
-#include "./InternalHeaderCheck.h"
-
-namespace Eigen {
+namespace Eigen { 
 
 namespace internal {
 template<typename UnaryOp, typename XprType>
@@ -24,9 +22,9 @@ struct traits<CwiseUnaryOp<UnaryOp, XprType> >
                      UnaryOp(const typename XprType::Scalar&)
                    >::type Scalar;
   typedef typename XprType::Nested XprTypeNested;
-  typedef std::remove_reference_t<XprTypeNested> XprTypeNested_;
+  typedef typename remove_reference<XprTypeNested>::type _XprTypeNested;
   enum {
-    Flags = XprTypeNested_::Flags & RowMajorBit
+    Flags = _XprTypeNested::Flags & RowMajorBit 
   };
 };
 }
@@ -61,16 +59,16 @@ class CwiseUnaryOp : public CwiseUnaryOpImpl<UnaryOp, XprType, typename internal
     typedef typename CwiseUnaryOpImpl<UnaryOp, XprType,typename internal::traits<XprType>::StorageKind>::Base Base;
     EIGEN_GENERIC_PUBLIC_INTERFACE(CwiseUnaryOp)
     typedef typename internal::ref_selector<XprType>::type XprTypeNested;
-    typedef internal::remove_all_t<XprType> NestedExpression;
+    typedef typename internal::remove_all<XprType>::type NestedExpression;
 
     EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE
     explicit CwiseUnaryOp(const XprType& xpr, const UnaryOp& func = UnaryOp())
       : m_xpr(xpr), m_functor(func) {}
 
-    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE EIGEN_CONSTEXPR
-    Index rows() const EIGEN_NOEXCEPT { return m_xpr.rows(); }
-    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE EIGEN_CONSTEXPR
-    Index cols() const EIGEN_NOEXCEPT { return m_xpr.cols(); }
+    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE
+    Index rows() const { return m_xpr.rows(); }
+    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE
+    Index cols() const { return m_xpr.cols(); }
 
     /** \returns the functor representing the unary operation */
     EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE
@@ -78,12 +76,12 @@ class CwiseUnaryOp : public CwiseUnaryOpImpl<UnaryOp, XprType, typename internal
 
     /** \returns the nested expression */
     EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE
-    const internal::remove_all_t<XprTypeNested>&
+    const typename internal::remove_all<XprTypeNested>::type&
     nestedExpression() const { return m_xpr; }
 
     /** \returns the nested expression */
     EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE
-    internal::remove_all_t<XprTypeNested>&
+    typename internal::remove_all<XprTypeNested>::type&
     nestedExpression() { return m_xpr; }
 
   protected:

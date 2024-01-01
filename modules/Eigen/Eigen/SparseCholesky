@@ -30,10 +30,15 @@
   * \endcode
   */
 
-// IWYU pragma: begin_exports
+#ifdef EIGEN_MPL2_ONLY
+#error The SparseCholesky module has nothing to offer in MPL2 only mode
+#endif
+
 #include "src/SparseCholesky/SimplicialCholesky.h"
+
+#ifndef EIGEN_MPL2_ONLY
 #include "src/SparseCholesky/SimplicialCholesky_impl.h"
-// IWYU pragma: end_exports
+#endif
 
 #include "src/Core/util/ReenableStupidWarnings.h"
 

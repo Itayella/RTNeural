@@ -10,8 +10,6 @@
 #ifndef EIGEN_ARRAYBASE_H
 #define EIGEN_ARRAYBASE_H
 
-#include "./InternalHeaderCheck.h"
-
 namespace Eigen { 
 
 template<typename ExpressionType> class MatrixWrapper;
@@ -23,7 +21,7 @@ template<typename ExpressionType> class MatrixWrapper;
   *
   * An array is similar to a dense vector or matrix. While matrices are mathematical
   * objects with well defined linear algebra operators, an array is just a collection
-  * of scalar values arranged in a one or two dimensional fashion. As the main consequence,
+  * of scalar values arranged in a one or two dimensionnal fashion. As the main consequence,
   * all operations applied to an array are performed coefficient wise. Furthermore,
   * arrays support scalar math functions of the c++ standard library (e.g., std::sin(x)), and convenient
   * constructors allowing to easily write generic code working for both scalar values
@@ -71,7 +69,6 @@ template<typename Derived> class ArrayBase
     using Base::coeff;
     using Base::coeffRef;
     using Base::lazyAssign;
-    using Base::operator-;
     using Base::operator=;
     using Base::operator+=;
     using Base::operator-=;
@@ -91,6 +88,7 @@ template<typename Derived> class ArrayBase
 
 #define EIGEN_CURRENT_STORAGE_BASE_CLASS Eigen::ArrayBase
 #define EIGEN_DOC_UNARY_ADDONS(X,Y)
+#   include "../plugins/CommonCwiseUnaryOps.h"
 #   include "../plugins/MatrixCwiseUnaryOps.h"
 #   include "../plugins/ArrayCwiseUnaryOps.h"
 #   include "../plugins/CommonCwiseBinaryOps.h"
@@ -155,8 +153,8 @@ template<typename Derived> class ArrayBase
 //     inline void evalTo(Dest& dst) const { dst = matrix(); }
 
   protected:
-    EIGEN_DEFAULT_COPY_CONSTRUCTOR(ArrayBase)
-    EIGEN_DEFAULT_EMPTY_CONSTRUCTOR_AND_DESTRUCTOR(ArrayBase)
+    EIGEN_DEVICE_FUNC
+    ArrayBase() : Base() {}
 
   private:
     explicit ArrayBase(Index);

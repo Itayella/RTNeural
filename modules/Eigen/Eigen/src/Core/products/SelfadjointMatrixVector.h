@@ -10,14 +10,12 @@
 #ifndef EIGEN_SELFADJOINT_MATRIX_VECTOR_H
 #define EIGEN_SELFADJOINT_MATRIX_VECTOR_H
 
-#include "../InternalHeaderCheck.h"
-
 namespace Eigen { 
 
 namespace internal {
 
 /* Optimized selfadjoint matrix * vector product:
- * This algorithm processes 2 columns at once that allows to both reduce
+ * This algorithm processes 2 columns at onces that allows to both reduce
  * the number of load/stores of the result by a factor 2 and to reduce
  * the instruction dependency.
  */
@@ -29,8 +27,7 @@ template<typename Scalar, typename Index, int StorageOrder, int UpLo, bool Conju
 struct selfadjoint_matrix_vector_product
 
 {
-static EIGEN_DONT_INLINE EIGEN_DEVICE_FUNC
-void run(
+static EIGEN_DONT_INLINE void run(
   Index size,
   const Scalar*  lhs, Index lhsStride,
   const Scalar*  rhs,
@@ -39,8 +36,7 @@ void run(
 };
 
 template<typename Scalar, typename Index, int StorageOrder, int UpLo, bool ConjugateLhs, bool ConjugateRhs, int Version>
-EIGEN_DONT_INLINE EIGEN_DEVICE_FUNC
-void selfadjoint_matrix_vector_product<Scalar,Index,StorageOrder,UpLo,ConjugateLhs,ConjugateRhs,Version>::run(
+EIGEN_DONT_INLINE void selfadjoint_matrix_vector_product<Scalar,Index,StorageOrder,UpLo,ConjugateLhs,ConjugateRhs,Version>::run(
   Index size,
   const Scalar*  lhs, Index lhsStride,
   const Scalar*  rhs,
@@ -57,16 +53,17 @@ void selfadjoint_matrix_vector_product<Scalar,Index,StorageOrder,UpLo,ConjugateL
     FirstTriangular = IsRowMajor == IsLower
   };
 
-  conj_helper<Scalar,Scalar,NumTraits<Scalar>::IsComplex && logical_xor(ConjugateLhs,  IsRowMajor), ConjugateRhs> cj0;
-  conj_helper<Scalar,Scalar,NumTraits<Scalar>::IsComplex && logical_xor(ConjugateLhs, !IsRowMajor), ConjugateRhs> cj1;
+  conj_helper<Scalar,Scalar,NumTraits<Scalar>::IsComplex && EIGEN_LOGICAL_XOR(ConjugateLhs,  IsRowMajor), ConjugateRhs> cj0;
+  conj_helper<Scalar,Scalar,NumTraits<Scalar>::IsComplex && EIGEN_LOGICAL_XOR(ConjugateLhs, !IsRowMajor), ConjugateRhs> cj1;
   conj_helper<RealScalar,Scalar,false, ConjugateRhs> cjd;
 
-  conj_helper<Packet,Packet,NumTraits<Scalar>::IsComplex && logical_xor(ConjugateLhs,  IsRowMajor), ConjugateRhs> pcj0;
-  conj_helper<Packet,Packet,NumTraits<Scalar>::IsComplex && logical_xor(ConjugateLhs, !IsRowMajor), ConjugateRhs> pcj1;
+  conj_helper<Packet,Packet,NumTraits<Scalar>::IsComplex && EIGEN_LOGICAL_XOR(ConjugateLhs,  IsRowMajor), ConjugateRhs> pcj0;
+  conj_helper<Packet,Packet,NumTraits<Scalar>::IsComplex && EIGEN_LOGICAL_XOR(ConjugateLhs, !IsRowMajor), ConjugateRhs> pcj1;
 
   Scalar cjAlpha = ConjugateRhs ? numext::conj(alpha) : alpha;
 
-  Index bound = numext::maxi(Index(0), size-8) & 0xfffffffe;
+
+  Index bound = (std::max)(Index(0),size-8) & 0xfffffffe;
   if (FirstTriangular)
     bound = size - bound;
 
@@ -169,26 +166,25 @@ struct selfadjoint_product_impl<Lhs,LhsMode,false,Rhs,0,true>
   
   typedef internal::blas_traits<Lhs> LhsBlasTraits;
   typedef typename LhsBlasTraits::DirectLinearAccessType ActualLhsType;
-  typedef internal::remove_all_t<ActualLhsType> ActualLhsTypeCleaned;
+  typedef typename internal::remove_all<ActualLhsType>::type ActualLhsTypeCleaned;
   
   typedef internal::blas_traits<Rhs> RhsBlasTraits;
   typedef typename RhsBlasTraits::DirectLinearAccessType ActualRhsType;
-  typedef internal::remove_all_t<ActualRhsType> ActualRhsTypeCleaned;
+  typedef typename internal::remove_all<ActualRhsType>::type ActualRhsTypeCleaned;
 
   enum { LhsUpLo = LhsMode&(Upper|Lower) };
 
   template<typename Dest>
-  static EIGEN_DEVICE_FUNC
-  void run(Dest& dest, const Lhs &a_lhs, const Rhs &a_rhs, const Scalar& alpha)
+  static void run(Dest& dest, const Lhs &a_lhs, const Rhs &a_rhs, const Scalar& alpha)
   {
     typedef typename Dest::Scalar ResScalar;
     typedef typename Rhs::Scalar RhsScalar;
-    typedef Map<Matrix<ResScalar,Dynamic,1>, plain_enum_min(AlignedMax,internal::packet_traits<ResScalar>::size)> MappedDest;
+    typedef Map<Matrix<ResScalar,Dynamic,1>, EIGEN_PLAIN_ENUM_MIN(AlignedMax,internal::packet_traits<ResScalar>::size)> MappedDest;
     
     eigen_assert(dest.rows()==a_lhs.rows() && dest.cols()==a_rhs.cols());
 
-    add_const_on_value_type_t<ActualLhsType> lhs = LhsBlasTraits::extract(a_lhs);
-    add_const_on_value_type_t<ActualRhsType> rhs = RhsBlasTraits::extract(a_rhs);
+    typename internal::add_const_on_value_type<ActualLhsType>::type lhs = LhsBlasTraits::extract(a_lhs);
+    typename internal::add_const_on_value_type<ActualRhsType>::type rhs = RhsBlasTraits::extract(a_rhs);
 
     Scalar actualAlpha = alpha * LhsBlasTraits::extractScalarFactor(a_lhs)
                                * RhsBlasTraits::extractScalarFactor(a_rhs);

@@ -10,8 +10,6 @@
 #ifndef EIGEN_ANGLEAXIS_H
 #define EIGEN_ANGLEAXIS_H
 
-#include "./InternalHeaderCheck.h"
-
 namespace Eigen { 
 
 /** \geometry_module \ingroup Geometry_Module
@@ -20,7 +18,7 @@ namespace Eigen {
   *
   * \brief Represents a 3D rotation as a rotation angle around an arbitrary 3D axis
   *
-  * \param Scalar_ the scalar type, i.e., the type of the coefficients.
+  * \param _Scalar the scalar type, i.e., the type of the coefficients.
   *
   * \warning When setting up an AngleAxis object, the axis vector \b must \b be \b normalized.
   *
@@ -41,16 +39,16 @@ namespace Eigen {
   */
 
 namespace internal {
-template<typename Scalar_> struct traits<AngleAxis<Scalar_> >
+template<typename _Scalar> struct traits<AngleAxis<_Scalar> >
 {
-  typedef Scalar_ Scalar;
+  typedef _Scalar Scalar;
 };
 }
 
-template<typename Scalar_>
-class AngleAxis : public RotationBase<AngleAxis<Scalar_>,3>
+template<typename _Scalar>
+class AngleAxis : public RotationBase<AngleAxis<_Scalar>,3>
 {
-  typedef RotationBase<AngleAxis<Scalar_>,3> Base;
+  typedef RotationBase<AngleAxis<_Scalar>,3> Base;
 
 public:
 
@@ -58,7 +56,7 @@ public:
 
   enum { Dim = 3 };
   /** the scalar type of the coefficients */
-  typedef Scalar_ Scalar;
+  typedef _Scalar Scalar;
   typedef Matrix<Scalar,3,3> Matrix3;
   typedef Matrix<Scalar,3,1> Vector3;
   typedef Quaternion<Scalar> QuaternionType;
@@ -171,8 +169,8 @@ template<typename Scalar>
 template<typename QuatDerived>
 EIGEN_DEVICE_FUNC AngleAxis<Scalar>& AngleAxis<Scalar>::operator=(const QuaternionBase<QuatDerived>& q)
 {
-  EIGEN_USING_STD(atan2)
-  EIGEN_USING_STD(abs)
+  EIGEN_USING_STD_MATH(atan2)
+  EIGEN_USING_STD_MATH(abs)
   Scalar n = q.vec().norm();
   if(n<NumTraits<Scalar>::epsilon())
     n = q.vec().stableNorm();
@@ -219,8 +217,8 @@ template<typename Scalar>
 typename AngleAxis<Scalar>::Matrix3
 EIGEN_DEVICE_FUNC AngleAxis<Scalar>::toRotationMatrix(void) const
 {
-  EIGEN_USING_STD(sin)
-  EIGEN_USING_STD(cos)
+  EIGEN_USING_STD_MATH(sin)
+  EIGEN_USING_STD_MATH(cos)
   Matrix3 res;
   Vector3 sin_axis  = sin(m_angle) * m_axis;
   Scalar c = cos(m_angle);

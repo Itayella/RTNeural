@@ -33,8 +33,6 @@
 #ifndef EIGEN_TRIANGULAR_SOLVER_MATRIX_BLAS_H
 #define EIGEN_TRIANGULAR_SOLVER_MATRIX_BLAS_H
 
-#include "../InternalHeaderCheck.h"
-
 namespace Eigen {
 
 namespace internal {
@@ -42,7 +40,7 @@ namespace internal {
 // implements LeftSide op(triangular)^-1 * general
 #define EIGEN_BLAS_TRSM_L(EIGTYPE, BLASTYPE, BLASFUNC) \
 template <typename Index, int Mode, bool Conjugate, int TriStorageOrder> \
-struct triangular_solve_matrix<EIGTYPE,Index,OnTheLeft,Mode,Conjugate,TriStorageOrder,ColMajor,1> \
+struct triangular_solve_matrix<EIGTYPE,Index,OnTheLeft,Mode,Conjugate,TriStorageOrder,ColMajor> \
 { \
   enum { \
     IsLower = (Mode&Lower) == Lower, \
@@ -53,10 +51,8 @@ struct triangular_solve_matrix<EIGTYPE,Index,OnTheLeft,Mode,Conjugate,TriStorage
   static void run( \
       Index size, Index otherSize, \
       const EIGTYPE* _tri, Index triStride, \
-      EIGTYPE* _other, Index otherIncr, Index otherStride, level3_blocking<EIGTYPE,EIGTYPE>& /*blocking*/) \
+      EIGTYPE* _other, Index otherStride, level3_blocking<EIGTYPE,EIGTYPE>& /*blocking*/) \
   { \
-   EIGEN_ONLY_USED_FOR_DEBUG(otherIncr); \
-   eigen_assert(otherIncr == 1); \
    BlasIndex m = convert_index<BlasIndex>(size), n = convert_index<BlasIndex>(otherSize), lda, ldb; \
    char side = 'L', uplo, diag='N', transa; \
    /* Set alpha_ */ \
@@ -103,7 +99,7 @@ EIGEN_BLAS_TRSM_L(scomplex, float,  ctrsm_)
 // implements RightSide general * op(triangular)^-1
 #define EIGEN_BLAS_TRSM_R(EIGTYPE, BLASTYPE, BLASFUNC) \
 template <typename Index, int Mode, bool Conjugate, int TriStorageOrder> \
-struct triangular_solve_matrix<EIGTYPE,Index,OnTheRight,Mode,Conjugate,TriStorageOrder,ColMajor,1> \
+struct triangular_solve_matrix<EIGTYPE,Index,OnTheRight,Mode,Conjugate,TriStorageOrder,ColMajor> \
 { \
   enum { \
     IsLower = (Mode&Lower) == Lower, \
@@ -114,10 +110,8 @@ struct triangular_solve_matrix<EIGTYPE,Index,OnTheRight,Mode,Conjugate,TriStorag
   static void run( \
       Index size, Index otherSize, \
       const EIGTYPE* _tri, Index triStride, \
-      EIGTYPE* _other, Index otherIncr, Index otherStride, level3_blocking<EIGTYPE,EIGTYPE>& /*blocking*/) \
+      EIGTYPE* _other, Index otherStride, level3_blocking<EIGTYPE,EIGTYPE>& /*blocking*/) \
   { \
-   EIGEN_ONLY_USED_FOR_DEBUG(otherIncr); \
-   eigen_assert(otherIncr == 1); \
    BlasIndex m = convert_index<BlasIndex>(otherSize), n = convert_index<BlasIndex>(size), lda, ldb; \
    char side = 'R', uplo, diag='N', transa; \
    /* Set alpha_ */ \

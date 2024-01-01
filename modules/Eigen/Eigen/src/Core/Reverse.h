@@ -12,9 +12,7 @@
 #ifndef EIGEN_REVERSE_H
 #define EIGEN_REVERSE_H
 
-#include "./InternalHeaderCheck.h"
-
-namespace Eigen {
+namespace Eigen { 
 
 namespace internal {
 
@@ -26,13 +24,13 @@ struct traits<Reverse<MatrixType, Direction> >
   typedef typename traits<MatrixType>::StorageKind StorageKind;
   typedef typename traits<MatrixType>::XprKind XprKind;
   typedef typename ref_selector<MatrixType>::type MatrixTypeNested;
-  typedef std::remove_reference_t<MatrixTypeNested> MatrixTypeNested_;
+  typedef typename remove_reference<MatrixTypeNested>::type _MatrixTypeNested;
   enum {
     RowsAtCompileTime = MatrixType::RowsAtCompileTime,
     ColsAtCompileTime = MatrixType::ColsAtCompileTime,
     MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
     MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime,
-    Flags = MatrixTypeNested_::Flags & (RowMajorBit | LvalueBit)
+    Flags = _MatrixTypeNested::Flags & (RowMajorBit | LvalueBit)
   };
 };
 
@@ -46,7 +44,7 @@ template<typename PacketType> struct reverse_packet_cond<PacketType,false>
   static inline PacketType run(const PacketType& x) { return x; }
 };
 
-} // end namespace internal
+} // end namespace internal 
 
 /** \class Reverse
   * \ingroup Core_Module
@@ -69,7 +67,7 @@ template<typename MatrixType, int Direction> class Reverse
 
     typedef typename internal::dense_xpr_base<Reverse>::type Base;
     EIGEN_DENSE_PUBLIC_INTERFACE(Reverse)
-    typedef internal::remove_all_t<MatrixType> NestedExpression;
+    typedef typename internal::remove_all<MatrixType>::type NestedExpression;
     using Base::IsRowMajor;
 
   protected:
@@ -91,18 +89,16 @@ template<typename MatrixType, int Direction> class Reverse
 
     EIGEN_INHERIT_ASSIGNMENT_OPERATORS(Reverse)
 
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
-    inline Index rows() const EIGEN_NOEXCEPT { return m_matrix.rows(); }
-    EIGEN_DEVICE_FUNC EIGEN_CONSTEXPR
-    inline Index cols() const EIGEN_NOEXCEPT { return m_matrix.cols(); }
+    EIGEN_DEVICE_FUNC inline Index rows() const { return m_matrix.rows(); }
+    EIGEN_DEVICE_FUNC inline Index cols() const { return m_matrix.cols(); }
 
     EIGEN_DEVICE_FUNC inline Index innerStride() const
     {
       return -m_matrix.innerStride();
     }
 
-    EIGEN_DEVICE_FUNC const internal::remove_all_t<typename MatrixType::Nested>&
-    nestedExpression() const
+    EIGEN_DEVICE_FUNC const typename internal::remove_all<typename MatrixType::Nested>::type&
+    nestedExpression() const 
     {
       return m_matrix;
     }
@@ -118,7 +114,7 @@ template<typename MatrixType, int Direction> class Reverse
   *
   */
 template<typename Derived>
-EIGEN_DEVICE_FUNC inline typename DenseBase<Derived>::ReverseReturnType
+inline typename DenseBase<Derived>::ReverseReturnType
 DenseBase<Derived>::reverse()
 {
   return ReverseReturnType(derived());
@@ -140,7 +136,7 @@ DenseBase<Derived>::reverse()
   *
   * \sa VectorwiseOp::reverseInPlace(), reverse() */
 template<typename Derived>
-EIGEN_DEVICE_FUNC inline void DenseBase<Derived>::reverseInPlace()
+inline void DenseBase<Derived>::reverseInPlace()
 {
   if(cols()>rows())
   {
@@ -165,7 +161,7 @@ EIGEN_DEVICE_FUNC inline void DenseBase<Derived>::reverseInPlace()
 }
 
 namespace internal {
-
+  
 template<int Direction>
 struct vectorwise_reverse_inplace_impl;
 
@@ -175,10 +171,8 @@ struct vectorwise_reverse_inplace_impl<Vertical>
   template<typename ExpressionType>
   static void run(ExpressionType &xpr)
   {
-    constexpr Index HalfAtCompileTime = ExpressionType::RowsAtCompileTime==Dynamic?Dynamic:ExpressionType::RowsAtCompileTime/2;
     Index half = xpr.rows()/2;
-    xpr.template topRows<HalfAtCompileTime>(half)
-       .swap(xpr.template bottomRows<HalfAtCompileTime>(half).colwise().reverse());
+    xpr.topRows(half).swap(xpr.bottomRows(half).colwise().reverse());
   }
 };
 
@@ -188,10 +182,8 @@ struct vectorwise_reverse_inplace_impl<Horizontal>
   template<typename ExpressionType>
   static void run(ExpressionType &xpr)
   {
-    constexpr Index HalfAtCompileTime = ExpressionType::ColsAtCompileTime==Dynamic?Dynamic:ExpressionType::ColsAtCompileTime/2;
     Index half = xpr.cols()/2;
-    xpr.template leftCols<HalfAtCompileTime>(half)
-       .swap(xpr.template rightCols<HalfAtCompileTime>(half).rowwise().reverse());
+    xpr.leftCols(half).swap(xpr.rightCols(half).rowwise().reverse());
   }
 };
 
@@ -209,9 +201,9 @@ struct vectorwise_reverse_inplace_impl<Horizontal>
   *
   * \sa DenseBase::reverseInPlace(), reverse() */
 template<typename ExpressionType, int Direction>
-EIGEN_DEVICE_FUNC void VectorwiseOp<ExpressionType,Direction>::reverseInPlace()
+void VectorwiseOp<ExpressionType,Direction>::reverseInPlace()
 {
-  internal::vectorwise_reverse_inplace_impl<Direction>::run(m_matrix);
+  internal::vectorwise_reverse_inplace_impl<Direction>::run(_expression().const_cast_derived());
 }
 
 } // end namespace Eigen
